@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FocusDay - ADHD向けタスク管理</title>
+  <meta name="description" content="ADHDの方のための、シンプルで使いやすい習慣・タスク管理アプリ" />
+  <link rel="manifest" href="#" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f7f6f2;
+      --surface: #ffffff;
+      --border: rgba(0,0,0,0.1);
+      --border-hover: rgba(0,0,0,0.2);
+      --text: #1a1a1a;
+      --text-muted: #6b6b6b;
+      --text-faint: #aaaaaa;
+      --green: #1D9E75;
+      --green-dark: #0F6E56;
+      --green-light: #E1F5EE;
+      --blue: #378ADD;
+      --blue-dark: #185FA5;
+      --blue-light: #E6F1FB;
+      --purple: #7F77DD;
+      --purple-light: #EEEDFE;
+      --amber: #BA7517;
+      --amber-light: #FAEEDA;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --surface: #242424;
+        --border: rgba(255,255,255,0.1);
+        --border-hover: rgba(255,255,255,0.2);
+        --text: #f0f0f0;
+        --text-muted: #aaaaaa;
+        --text-faint: #555555;
+        --green-light: #04342C;
+        --blue-light: #042C53;
+        --purple-light: #26215C;
+        --amber-light: #412402;
+      }
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 2rem;
+    }
+
+    .app {
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      padding: 2rem 0 1rem;
+    }
+    .header .app-name {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: var(--green);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .header h1 {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .header .date {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Streak */
+    .streak-section { margin: 1.25rem 0; }
+    .streak-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .streak-bar {
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+    }
+    .streak-day {
+      flex: 1;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .streak-done { background: var(--green); color: #fff; }
+    .streak-today { background: var(--blue); color: #fff; }
+    .streak-empty { background: var(--surface); color: var(--text-faint); border: 1px solid var(--border); }
+
+    /* Progress */
+    .progress-section { margin: 1.25rem 0; }
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .progress-meta strong { color: var(--text); font-weight: 600; }
+    .progress-bar {
+      height: 10px;
+      background: var(--surface);
+      border-radius: 99px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    /* Section label */
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 1.5rem 0 0.75rem;
+    }
+
+    /* Task card */
+    .task-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      transition: transform 0.1s, border-color 0.2s, opacity 0.3s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .task-card:hover { border-color: var(--border-hover); }
+    .task-card:active { transform: scale(0.98); }
+    .task-card.done { opacity: 0.4; }
+    .task-card.done .task-name { text-decoration: line-through; }
+
+    .task-check {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 2px solid var(--border-hover);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      background: transparent;
+    }
+    .task-card.done .task-check {
+      background: var(--green);
+      border-color: var(--green);
+    }
+    .check-svg { display: none; }
+    .task-card.done .check-svg { display: block; }
+
+    .task-info { flex: 1; min-width: 0; }
+    .task-name {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .task-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .task-tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 99px;
+      white-space: nowrap;
+    }
+    .tag-morning { background: var(--amber-light); color: var(--amber); }
+    .tag-day { background: var(--blue-light); color: var(--blue-dark); }
+    .tag-night { background: var(--purple-light); color: var(--purple); }
+
+    /* Delete button */
+    .delete-btn {
+      background: none;
+      border: none;
+      color: var(--text-faint);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 0 0 0 4px;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    .delete-btn:hover { color: #E24B4A; }
+
+    /* Add task */
+    .add-section { margin-top: 1rem; }
+    .add-row {
+      display: flex;
+      gap: 8px;
+    }
+    .add-input {
+      flex: 1;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .add-input::placeholder { color: var(--text-faint); }
+    .add-input:focus { border-color: var(--green); }
+    .add-btn {
+      padding: 12px 18px;
+      border-radius: var(--radius-sm);
+      background: var(--green);
+      color: #fff;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .add-btn:hover { background: var(--green-dark); }
+    .add-btn:active { transform: scale(0.97); }
+
+    .time-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .time-input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+    }
+    .time-input:focus { border-color: var(--green); }
+    select.time-input { cursor: pointer; }
+
+    /* Notify */
+    .notify-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: var(--radius);
+      border: 2px solid var(--blue);
+      background: transparent;
+      color: var(--blue-dark);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 1.25rem;
+    }
+    .notify-btn:hover { background: var(--blue-light); }
+    .notify-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+    /* Congrats */
+    .congrats {
+      text-align: center;
+      padding: 2rem 1rem;
+      background: var(--green-light);
+      border-radius: var(--radius);
+      margin-top: 1.25rem;
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+    .congrats.show { display: block; }
+    .congrats .big { font-size: 40px; margin-bottom: 10px; }
+    .congrats h2 { font-size: 18px; font-weight: 600; color: var(--green-dark); margin-bottom: 6px; }
+    .congrats p { font-size: 14px; color: var(--green-dark); opacity: 0.8; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1a1a1a;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 99px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: transform 0.3s ease;
+      z-index: 100;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="app-name">FocusDay</div>
+    <h1>今日のタスク</h1>
+    <div class="date" id="date-label"></div>
+  </div>
+
+  <div class="streak-section">
+    <div class="streak-label">今週の記録</div>
+    <div class="streak-bar" id="streak-bar"></div>
+  </div>
+
+  <div class="progress-section">
+    <div class="progress-meta">
+      <span>今日の進捗</span>
+      <strong id="progress-text">0 / 0 完了</strong>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="section-label">タスク一覧</div>
+  <div id="task-list"></div>
+
+  <div class="add-section">
+    <div class="section-label">タスクを追加</div>
+    <div class="add-row">
+      <input class="add-input" id="new-task-input" placeholder="例：朝の薬を飲む" />
+      <button class="add-btn" onclick="addTask()">追加</button>
+    </div>
+    <div class="time-row">
+      <input class="time-input" type="time" id="new-task-time" value="09:00" />
+      <select class="time-input" id="new-task-tag">
+        <option value="morning">朝</option>
+        <option value="day" selected>昼</option>
+        <option value="night">夜</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="notify-btn" id="notify-btn" onclick="toggleNotify()">
+    🔔 リマインダーをオンにする
+  </button>
+
+  <div class="congrats" id="congrats">
+    <div class="big">🎉</div>
+    <h2>全部完了！</h2>
+    <p>今日もよく頑張りました。<br>明日もこの調子で！</p>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const STORAGE_KEY = 'focusday_tasks';
+  const STREAK_KEY = 'focusday_streak';
+
+  const tagLabel = { morning: '朝', day: '昼', night: '夜' };
+  const tagClass = { morning: 'tag-morning', day: 'tag-day', night: 'tag-night' };
+
+  function today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function loadTasks() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultTasks();
+      const data = JSON.parse(raw);
+      if (data.date !== today()) {
+        saveStreak(data.tasks.every(t => t.done));
+        const reset = data.tasks.map(t => ({ ...t, done: false }));
+        return reset;
+      }
+      return data.tasks;
+    } catch { return defaultTasks(); }
+  }
+
+  function saveTasks(tasks) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: today(), tasks }));
+  }
+
+  function defaultTasks() {
+    return [
+      { id: 1, name: '朝の薬を飲む', time: '07:00', tag: 'morning', done: false },
+      { id: 2, name: '5分間ストレッチ', time: '07:30', tag: 'morning', done: false },
+      { id: 3, name: '今日の優先タスクを1つ決める', time: '09:00', tag: 'day', done: false },
+      { id: 4, name: '日記を書く', time: '21:00', tag: 'night', done: false },
+    ];
+  }
+
+  function saveStreak(allDone) {
+    try {
+      const raw = localStorage.getItem(STREAK_KEY);
+      const streak = raw ? JSON.parse(raw) : {};
+      streak[today()] = allDone;
+      localStorage.setItem(STREAK_KEY, JSON.stringify(streak));
+    } catch {}
+  }
+
+  function loadStreak() {
+    try {
+      return JSON.parse(localStorage.getItem(STREAK_KEY)) || {};
+    } catch { return {}; }
+  }
+
+  let tasks = loadTasks();
+  let nextId = tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
+
+  function renderDate() {
+    const d = new Date();
+    const days = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+    document.getElementById('date-label').textContent =
+      `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${days[d.getDay()]}`;
+  }
+
+  function renderStreak() {
+    const bar = document.getElementById('streak-bar');
+    bar.innerHTML = '';
+    const streak = loadStreak();
+    const dayNames = ['月', '火', '水', '木', '金', '土', '日'];
+    const now = new Date();
+    const dayOfWeek = (now.getDay() + 6) % 7;
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - dayOfWeek + i);
+      const key = d.toISOString().slice(0, 10);
+      const isToday = key === today();
+      const el = document.createElement('div');
+      const isDone = streak[key];
+      el.className = 'streak-day ' + (isToday ? 'streak-today' : isDone ? 'streak-done' : 'streak-empty');
+      el.textContent = dayNames[i];
+      bar.appendChild(el);
+    }
+  }
+
+  function renderTasks() {
+    const list = document.getElementById('task-list');
+    list.innerHTML = '';
+    tasks.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'task-card' + (t.done ? ' done' : '');
+      card.innerHTML = `
+        <div class="task-check">
+          <svg class="check-svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M2 7l4 4 6-6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="task-info">
+          <div class="task-name">${escHtml(t.name)}</div>
+          <div class="task-meta">${t.time}</div>
+        </div>
+        <span class="task-tag ${tagClass[t.tag]}">${tagLabel[t.tag]}</span>
+        <button class="delete-btn" title="削除">×</button>
+      `;
+      card.querySelector('.task-check').addEventListener('click', e => { e.stopPropagation(); toggle(t.id); });
+      card.querySelector('.task-name').addEventListener('click', () => toggle(t.id));
+      card.querySelector('.task-meta').addEventListener('click', () => toggle(t.id));
+      card.querySelector('.delete-btn').addEventListener('click', e => { e.stopPropagation(); removeTask(t.id); });
+      list.appendChild(card);
+    });
+    updateProgress();
+    saveTasks(tasks);
+  }
+
+  function toggle(id) {
+    const t = tasks.find(x => x.id === id);
+    if (!t) return;
+    t.done = !t.done;
+    if (t.done) showToast('✓ ' + t.name + ' 完了！');
+    renderTasks();
+    if (tasks.every(t => t.done) && tasks.length > 0) {
+      saveStreak(true);
+      renderStreak();
+    }
+  }
+
+  function removeTask(id) {
+    tasks = tasks.filter(t => t.id !== id);
+    renderTasks();
+  }
+
+  function addTask() {
+    const input = document.getElementById('new-task-input');
+    const timeInput = document.getElementById('new-task-time');
+    const tagInput = document.getElementById('new-task-tag');
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    tasks.push({ id: nextId++, name, time: timeInput.value, tag: tagInput.value, done: false });
+    input.value = '';
+    input.focus();
+    renderTasks();
+    showToast('タスクを追加しました');
+  }
+
+  document.getElementById('new-task-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addTask();
+  });
+
+  function updateProgress() {
+    const done = tasks.filter(t => t.done).length;
+    const total = tasks.length;
+    const pct = total ? Math.round(done / total * 100) : 0;
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-text').textContent = `${done} / ${total} 完了`;
+    const cong = document.getElementById('congrats');
+    if (done === total && total > 0) cong.classList.add('show');
+    else cong.classList.remove('show');
+  }
+
+  let notifyOn = false;
+  let notifyTimers = [];
+
+  function toggleNotify() {
+    if (!('Notification' in window)) {
+      showToast('このブラウザは通知非対応です');
+      return;
+    }
+    if (!notifyOn) {
+      Notification.requestPermission().then(perm => {
+        if (perm === 'granted') {
+          notifyOn = true;
+          scheduleNotifications();
+          updateNotifyBtn();
+          showToast('🔔 リマインダーをオンにしました');
+        } else {
+          showToast('通知の許可が必要です');
+        }
+      });
+    } else {
+      notifyOn = false;
+      notifyTimers.forEach(clearTimeout);
+      notifyTimers = [];
+      updateNotifyBtn();
+      showToast('リマインダーをオフにしました');
+    }
+  }
+
+  function updateNotifyBtn() {
+    const btn = document.getElementById('notify-btn');
+    btn.textContent = notifyOn ? '🔔 リマインダー ON（タップで解除）' : '🔔 リマインダーをオンにする';
+    btn.classList.toggle('active', notifyOn);
+  }
+
+  function scheduleNotifications() {
+    notifyTimers.forEach(clearTimeout);
+    notifyTimers = [];
+    const now = new Date();
+    tasks.filter(t => !t.done).forEach(t => {
+      const [h, m] = t.time.split(':').map(Number);
+      const target = new Date();
+      target.setHours(h, m, 0, 0);
+      const diff = target - now;
+      if (diff > 0) {
+        const timer = setTimeout(() => {
+          if (notifyOn && !tasks.find(x => x.id === t.id)?.done) {
+            new Notification('FocusDay', {
+              body: '「' + t.name + '」の時間です！',
+              icon: ''
+            });
+          }
+        }, diff);
+        notifyTimers.push(timer);
+      }
+    });
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  renderDate();
+  renderStreak();
+  renderTasks();
+</script>
+</body>
+</html>
